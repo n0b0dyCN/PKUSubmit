@@ -96,6 +96,7 @@ def get_curr_application(sess, sid):
     j = json.loads(resp.text)
     if not j["success"]:
         fail("Fail in get_curr_application", resp.text)
+    logv("curr application", resp.text)
     return j
 
 def check_new_application(sess, sid):
@@ -172,10 +173,12 @@ def run(wechat_key, file_type, file_path):
         
         # set data info
         BASIC["crxrq"] = curr_application["row"]["defaultCrxrq"]
+        logv("application time", BASIC["crxrq"])
 
         application_id = ""
         if "lastSqxx" in curr_application["row"]:
-            application_id = curr_application["row"]["lastSqxx"]["sqbh"]
+            if curr_application["row"]["lastSqxx"]["crxrq"] == BASIC["crxrq"]:
+                application_id = curr_application["row"]["lastSqxx"]["sqbh"]
         save_application(sess, sid, application_id)
 
         # get application id
@@ -191,6 +194,8 @@ def run(wechat_key, file_type, file_path):
 
         # submit
         submit(sess, sid, application_id)
+
+        log("备案成功")
 
         # logout
         logout(sess, sid)
