@@ -50,7 +50,7 @@ def logv(vname, v):
 def fail(reason, msg):
     log(reason)
     log(msg)
-    raise Exception(f"""{reason}\n```\n{msg}```\n""")
+    raise Exception(f"""{reason}\n\n{msg}\n""")
 
 def finish_log():
     global LOG
