@@ -91,7 +91,7 @@ def simsoLogin(sess, token):
     return j
 
 def get_curr_application(sess, sid):
-    url = f"https://simso.pku.edu.cn/ssapi/stuaffair/epiApply/getSqzt?sid={sid}"
+    url = f"https://simso.pku.edu.cn/ssapi/stuaffair/epiApply/getSqzt?sid={sid}&_sk={USERNAME}"
     resp = sess.get(url, headers=headers)
     j = json.loads(resp.text)
     if not j["success"]:
@@ -99,12 +99,23 @@ def get_curr_application(sess, sid):
     logv("curr application", resp.text)
     return j
 
+def get_last_application(sess, sid):
+    url = f"https://simso.pku.edu.cn/ssapi/stuaffair/epiApply/getSqxxHis?sid={sid}&_sk={USERNAME}"
+    resp = sess.get(url, headers=headers)
+    j = json.loads(resp.text)
+    if not j["success"]:
+        fail("Fail in get_last_application_id", resp.text)
+    ret = j["row"][0]
+    logv("last application", ret)
+    return ret
+
+
 def check_new_application(sess, sid):
-    url = f"https://simso.pku.edu.cn/ssapi/stuaffair/epiApply/newApplyCheck?sid={sid}"
+    url = f"https://simso.pku.edu.cn/ssapi/stuaffair/epiApply/newApplyCheck?sid={sid}&_sk={USERNAME}"
     resp = sess.get(url, headers=headers)
 
 def save_application(sess, sid, application_id):
-    url = f"https://simso.pku.edu.cn/ssapi/stuaffair/epiApply/saveSqxx?sid={sid}"
+    url = f"https://simso.pku.edu.cn/ssapi/stuaffair/epiApply/saveSqxx?sid={sid}&_sk={USERNAME}"
     application_data = BASIC
     if application_id:
         application_data["sqbh"] = application_id
@@ -114,15 +125,15 @@ def save_application(sess, sid, application_id):
         fail("Fail in save_application", resp.text)
 
 def remove_file(sess, sid, application_id):
-    url1 = f"https://simso.pku.edu.cn/ssapi/stuaffair/epiApply/getZmclxx?sid={sid}&sqbh={application_id}"
+    url1 = f"https://simso.pku.edu.cn/ssapi/stuaffair/epiApply/getZmclxx?sid={sid}&sqbh={application_id}&_sk={USERNAME}"
     imgs = json.loads(sess.get(url1, headers=headers).text)
     if imgs["success"]:
         for im in imgs["rows"]:
-            url2 = f"https://simso.pku.edu.cn/ssapi/stuaffair/epiApply/removeZmcl?sid={sid}&clid={im['clid']}"
+            url2 = f"https://simso.pku.edu.cn/ssapi/stuaffair/epiApply/removeZmcl?sid={sid}&clid={im['clid']}&_sk={USERNAME}"
             resp = sess.post(url2, headers=headers)
 
 def upload_file(sess, file_type, file_path, sid, application_id):
-    url = f"https://simso.pku.edu.cn/ssapi/stuaffair/epiApply/uploadZmcl?sid={sid}"
+    url = f"https://simso.pku.edu.cn/ssapi/stuaffair/epiApply/uploadZmcl?sid={sid}&_sk={USERNAME}"
     data = {
         "cldms": file_type,
         "sqbh": application_id
@@ -134,7 +145,7 @@ def upload_file(sess, file_type, file_path, sid, application_id):
         fail("Fail in upload_file", resp.text)
 
 def submit(sess, sid, application_id):
-    url = f"https://simso.pku.edu.cn/ssapi/stuaffair/epiApply/submitSqxx?sid={sid}&sqbh={application_id}"
+    url = f"https://simso.pku.edu.cn/ssapi/stuaffair/epiApply/submitSqxx?sid={sid}&sqbh={application_id}&_sk={USERNAME}"
     resp = sess.get(url, headers=headers)
     j = json.loads(resp.text)
     if not j["success"]:
@@ -173,19 +184,17 @@ def run(wechat_key, file_type, file_path):
         
         # set data info
         BASIC["crxrq"] = curr_application["row"]["defaultCrxrq"]
+        BASIC.update(curr_application["row"]["lxxx"])
         logv("application time", BASIC["crxrq"])
 
         application_id = ""
-        if "lastSqxx" in curr_application["row"]:
-            if curr_application["row"]["lastSqxx"]["crxrq"] == BASIC["crxrq"]:
-                application_id = curr_application["row"]["lastSqxx"]["sqbh"]
+        last_application = get_last_application(sess, sid)
+        if last_application["crxrq"] == BASIC["crxrq"]:
+            application_id = last_application["sqbh"]
         save_application(sess, sid, application_id)
 
         # get application id
-        curr_application = get_curr_application(sess, sid)
-        if "lastSqxx" not in curr_application["row"]:
-            fail("Cannot find lastSqxx", json.dumps(curr_application))
-        application_id = curr_application["row"]["lastSqxx"]["sqbh"]
+        application_id = get_last_application(sess, sid)["sqbh"]
         logv("application_id", application_id)
 
         # upload pic
@@ -239,7 +248,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     BASIC["qdxm"] = args.gate
-    BASIC["email"] = args.email
+    BASIC["dzyx"] = args.email
     BASIC["lxdh"] = args.phone
     BASIC["crxsy"] = args.reason
     BASIC["crxjtsx"] = args.desc
@@ -252,5 +261,6 @@ if __name__ == "__main__":
         file_type = "bjjkb"
     file_path = args.file
 
+    print(BASIC)
     run(wechat_key, file_type,file_path)
     print(LOG)
